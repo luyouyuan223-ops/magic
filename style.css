@@ -30,3 +30,6 @@
 
 /* Slow fluid light is automatic, with no mouse tracking. */
 .fluid-light{filter:blur(14px);transform:scale(1.035);opacity:1}.hero-inner{position:relative;z-index:1}@media(prefers-reduced-motion:reduce){.fluid-light{opacity:.7}}
+
+/* One fixed background spans every section; photographs remain opaque and unchanged. */
+body{isolation:isolate;background:#000}body>.fluid-light{position:fixed;inset:0;width:100%;height:100%;z-index:-1;pointer-events:none;filter:blur(14px);transform:scale(1.035)}.hero,.section,.about,.shows,.moments,.faq,.contact-section,footer{background:transparent}.hero{isolation:auto}main{background:transparent}.hero-inner{mix-blend-mode:screen}.site-header{background:transparent}dialog{background:#080808}

@@ -63,10 +63,9 @@ document.querySelectorAll('.faq-list details').forEach(details => {
   });
 });
 
-// Autonomous silver mist. A low-resolution, domain-warped field keeps the motion soft.
+// Autonomous silver mist across the viewport, flowing at 1.7 times the original speed.
 (() => {
-  const hero=document.querySelector('.hero');
-  const canvas=hero?.querySelector('.fluid-light');
+  const canvas=document.querySelector('body > .fluid-light');
   const ctx=canvas?.getContext('2d',{alpha:false});
   if(!ctx)return;
   const field=document.createElement('canvas');
@@ -106,16 +105,24 @@ document.querySelectorAll('.faq-list details').forEach(details => {
     frame=0;if(!visible||document.hidden)return;
     if(last===0||now-last>=1000/24){
       if(last)elapsed+=Math.min(now-last,100);
-      last=now;draw(reduceMotion.matches?0:elapsed*.00012);
+      last=now;draw(reduceMotion.matches?0:elapsed*.000204);
     }
     if(!reduceMotion.matches)frame=requestAnimationFrame(paint);
   }
   function wake(){if(!frame&&visible&&!document.hidden){last=0;frame=requestAnimationFrame(paint);}}
   function pause(){if(frame)cancelAnimationFrame(frame);frame=0;last=0;}
-  function resize(){const r=hero.getBoundingClientRect();width=Math.max(1,Math.round(r.width));height=Math.max(1,Math.round(r.height));canvas.width=width;canvas.height=height;field.width=140;field.height=Math.max(64,Math.round(140*height/width));pixels=fieldCtx.createImageData(field.width,field.height);draw(reduceMotion.matches?0:elapsed*.00012);wake();}
-  new ResizeObserver(resize).observe(hero);
-  new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)wake();else pause();}).observe(hero);
+  function resize(){
+    const nextWidth=Math.max(1,document.documentElement.clientWidth);
+    const nextHeight=Math.max(1,window.innerHeight);
+    if(pixels && nextWidth===width && nextHeight===height)return;
+    width=nextWidth;height=nextHeight;canvas.width=width;canvas.height=height;
+    field.width=140;field.height=Math.min(200,Math.max(64,Math.round(140*height/width)));
+    pixels=fieldCtx.createImageData(field.width,field.height);
+    draw(reduceMotion.matches?0:elapsed*.000204);wake();
+  }
+  window.addEventListener('resize',resize,{passive:true});
+  new ResizeObserver(resize).observe(document.documentElement);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else wake();});
-  reduceMotion.addEventListener('change',()=>{pause();draw(reduceMotion.matches?0:elapsed*.00012);wake();});
+  reduceMotion.addEventListener('change',()=>{pause();draw(reduceMotion.matches?0:elapsed*.000204);wake();});
   resize();
 })();
