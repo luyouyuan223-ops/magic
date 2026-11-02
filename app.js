@@ -5,7 +5,7 @@ const contact = document.getElementById('contact-dialog');
 const viewer = document.getElementById('photo-dialog');
 const photos = [...document.querySelectorAll('[data-photo]')];
 let photoIndex = 0;
-function openDialog(dialog, opener) { dialog._opener = opener; dialog.showModal(); }
+function openDialog(dialog, opener) { dialog._opener = opener; dialog.showModal(); dialog.scrollTop = 0; }
 function closeDialog(dialog) { dialog.close(); }
 for (const dialog of [contact, viewer]) {
   dialog.querySelector('.dialog-close').addEventListener('click', () => closeDialog(dialog));
