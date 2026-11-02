@@ -63,73 +63,59 @@ document.querySelectorAll('.faq-list details').forEach(details => {
   });
 });
 
-// Silver fluid light: spring-following fog and a soft ribbon, driven by pointer position.
+// Autonomous silver mist. A low-resolution, domain-warped field keeps the motion soft.
 (() => {
-  const hero = document.querySelector('.hero');
-  const canvas = hero?.querySelector('.fluid-light');
-  const ctx = canvas?.getContext('2d', { alpha: false });
-  if (!hero || !ctx) return;
-  let width = 1, height = 1, dpr = 1, frame = 0, visible = true, active = false;
-  let lastMove = performance.now(), previousTime = 0;
-  const target = {x: 0, y: 0};
-  const chain = Array.from({length: 16}, () => ({x: 0, y: 0}));
-  function fog(x,y,radius,strength,stretch=1) {
-    ctx.save(); ctx.translate(x,y); ctx.scale(stretch,1);
-    const g=ctx.createRadialGradient(0,0,0,0,0,radius);
-    g.addColorStop(0,`rgba(225,235,245,${strength})`);
-    g.addColorStop(.25,`rgba(180,198,216,${strength*.64})`);
-    g.addColorStop(.58,`rgba(140,157,175,${strength*.22})`);
-    g.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=g;ctx.fillRect(-radius,-radius,radius*2,radius*2);ctx.restore();
+  const hero=document.querySelector('.hero');
+  const canvas=hero?.querySelector('.fluid-light');
+  const ctx=canvas?.getContext('2d',{alpha:false});
+  if(!ctx)return;
+  const field=document.createElement('canvas');
+  const fieldCtx=field.getContext('2d',{alpha:false});
+  if(!fieldCtx)return;
+  let width=1,height=1,frame=0,visible=true,last=0,elapsed=0,pixels;
+  const fract=x=>x-Math.floor(x);
+  const hash=(x,y)=>fract(Math.sin(x*127.1+y*311.7)*43758.5453);
+  const mix=(a,b,t)=>a+(b-a)*t;
+  function noise(x,y){
+    const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy;
+    const ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);
+    return mix(mix(hash(ix,iy),hash(ix+1,iy),ux),mix(hash(ix,iy+1),hash(ix+1,iy+1),ux),uy);
   }
-  function paint(time) {
-    frame=0;
-    if (!visible || document.hidden) return;
-    const dt=Math.min(2.5,(time-(previousTime||time))/16.67 || 1); previousTime=time;
-    const moving=!reduceMotion.matches;
-    const follow=1-Math.pow(.86,dt);
-    let displacement=0;
-    chain.forEach((p,i)=>{
-      const lead=i ? chain[i-1] : target;
-      const dx=lead.x-p.x,dy=lead.y-p.y;
-      displacement+=Math.abs(dx)+Math.abs(dy);
-      if(moving){p.x+=dx*follow;p.y+=dy*follow;}else{p.x=lead.x;p.y=lead.y;}
-    });
-    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.globalCompositeOperation='source-over';
-    ctx.fillStyle='#000';ctx.fillRect(0,0,width,height);
-    ctx.globalCompositeOperation='lighter';
-    const radius=Math.min(350,Math.max(190,width*.27));
-    const head=chain[0],tail=chain[11];
-    fog(head.x,head.y,radius,active ? .25 : .15,1.2);
-    fog(tail.x,tail.y,radius*.85,active ? .13 : .08,.8);
-    const age=Math.min(1,(time-lastMove)/1600);
-    const bend=(1-age)*Math.sin(time*.0018)*radius*.15;
-    fog(chain[5].x+radius*.22,chain[5].y-radius*.14+bend,radius*.65,.11,1.5);
-    fog(chain[9].x-radius*.2,chain[9].y+radius*.12-bend,radius*.7,.09,.65);
-    if (displacement>8 && moving) {
-      ctx.save();ctx.lineCap='round';ctx.lineJoin='round';ctx.shadowColor='rgba(215,230,245,.26)';ctx.shadowBlur=25;
-      const grad=ctx.createLinearGradient(tail.x,tail.y,head.x+.01,head.y+.01);
-      grad.addColorStop(0,'rgba(160,180,200,0)');grad.addColorStop(.55,'rgba(190,207,224,.055)');grad.addColorStop(1,'rgba(225,235,245,.16)');
-      ctx.strokeStyle=grad;ctx.lineWidth=Math.min(32,radius*.1);ctx.beginPath();ctx.moveTo(chain[15].x,chain[15].y);
-      for(let i=14;i>0;i--){const p=chain[i],next=chain[i-1];ctx.quadraticCurveTo(p.x,p.y,(p.x+next.x)/2,(p.y+next.y)/2);}ctx.lineTo(head.x,head.y);ctx.stroke();ctx.restore();
+  function fbm(x,y){let v=0,a=.56;for(let k=0;k<3;k++){v+=noise(x,y)*a;const xx=x*1.65-y*.85+3.1;y=x*.85+y*1.65+1.7;x=xx;a*=.5;}return v;}
+  function draw(t){
+    const fw=field.width,fh=field.height,aspect=width/height;
+    const data=pixels.data;
+    for(let y=0;y<fh;y++)for(let x=0;x<fw;x++){
+      const u=x/(fw-1),v=y/(fh-1),px=(u-.5)*aspect,py=v-.46;
+      const qx=fbm(px*1.45+t*.12,py*1.45-t*.08);
+      const qy=fbm(px*1.45+7.2-t*.09,py*1.45+3.1+t*.11);
+      const flow=fbm(px*1.9+qx*2.8+t*.13,py*1.9+qy*2.8-t*.1);
+      const fold=Math.pow(Math.max(0,1-Math.abs(flow-.48)*3.8),2.5);
+      const mist=Math.max(0,(flow-.19)*.28);
+      const envelope=Math.exp(-px*px*.95-py*py*2.5);
+      const edge=Math.pow(Math.max(0,Math.sin(Math.PI*u)*Math.sin(Math.PI*v)),.5);
+      const light=(mist+fold*.19)*envelope*edge;
+      const shade=Math.min(74,Math.max(0,light*255));
+      const i=(y*fw+x)*4;data[i]=shade;data[i+1]=shade;data[i+2]=shade;data[i+3]=255;
     }
-    ctx.globalCompositeOperation='source-over';
-    if(moving && (displacement>1 || (active && time-lastMove<1700))) frame=requestAnimationFrame(paint);
+    fieldCtx.putImageData(pixels,0,0);
+    ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';
+    ctx.drawImage(field,0,0,width,height);
   }
-  function wake(){if(!frame && visible && !document.hidden)frame=requestAnimationFrame(paint);}
-  function resize(){
-    const rect=hero.getBoundingClientRect();width=rect.width;height=rect.height;dpr=Math.min(window.devicePixelRatio||1,1.5);
-    canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
-    if(!active){target.x=width*.5;target.y=height*.43;chain.forEach(p=>{p.x=target.x;p.y=target.y;});}wake();
+  function paint(now){
+    frame=0;if(!visible||document.hidden)return;
+    if(last===0||now-last>=1000/24){
+      if(last)elapsed+=Math.min(now-last,100);
+      last=now;draw(reduceMotion.matches?0:elapsed*.00012);
+    }
+    if(!reduceMotion.matches)frame=requestAnimationFrame(paint);
   }
-  hero.addEventListener('pointermove',e=>{
-    const r=hero.getBoundingClientRect();target.x=e.clientX-r.left;target.y=e.clientY-r.top;
-    active=true;lastMove=performance.now();wake();
-  },{passive:true});
-  hero.addEventListener('pointerleave',()=>{active=false;target.x=width*.5;target.y=height*.43;lastMove=performance.now();wake();});
+  function wake(){if(!frame&&visible&&!document.hidden){last=0;frame=requestAnimationFrame(paint);}}
+  function pause(){if(frame)cancelAnimationFrame(frame);frame=0;last=0;}
+  function resize(){const r=hero.getBoundingClientRect();width=Math.max(1,Math.round(r.width));height=Math.max(1,Math.round(r.height));canvas.width=width;canvas.height=height;field.width=140;field.height=Math.max(64,Math.round(140*height/width));pixels=fieldCtx.createImageData(field.width,field.height);draw(reduceMotion.matches?0:elapsed*.00012);wake();}
   new ResizeObserver(resize).observe(hero);
-  new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible){previousTime=0;wake();}else if(frame){cancelAnimationFrame(frame);frame=0;}}).observe(hero);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&frame){cancelAnimationFrame(frame);frame=0;}else{previousTime=0;wake();}});
-  reduceMotion.addEventListener('change',wake);
+  new IntersectionObserver(entries=>{visible=entries[0].isIntersecting;if(visible)wake();else pause();}).observe(hero);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)pause();else wake();});
+  reduceMotion.addEventListener('change',()=>{pause();draw(reduceMotion.matches?0:elapsed*.00012);wake();});
   resize();
 })();

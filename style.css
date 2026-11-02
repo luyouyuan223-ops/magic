@@ -27,3 +27,6 @@
 
 /* Pointer-driven silver light lives below content and never intercepts input. */
 .hero:before,.hero:after{display:none}.fluid-light{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;opacity:1}.hero-inner{mix-blend-mode:screen}.hero h1{mix-blend-mode:screen}.hero .wordmark{mix-blend-mode:screen}.hero .scroll-cue{color:#aaa}@media(prefers-reduced-motion:reduce){.fluid-light{opacity:.55}}
+
+/* Slow fluid light is automatic, with no mouse tracking. */
+.fluid-light{filter:blur(14px);transform:scale(1.035);opacity:1}.hero-inner{position:relative;z-index:1}@media(prefers-reduced-motion:reduce){.fluid-light{opacity:.7}}
